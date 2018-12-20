@@ -26,6 +26,9 @@ class NasscomSpider(scrapy.Spider):
     name = "nasscom_spider"
     start_urls = ['https://www.nasscom.in/events']
 
+    def __init__(self, name=None, **kwargs):
+        print('config',config)
+
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
         spider = super(NasscomSpider, cls).from_crawler(crawler, *args, **kwargs)
@@ -33,7 +36,8 @@ class NasscomSpider(scrapy.Spider):
         return spider
 
     def parse(self, response):
-        event_data['Nasscom Events'] = []
+        event_data['Events'] = []
+        count = 0
         for item in response.xpath("//div[@class='view-content']//div[@class='item-list']//li"):
             event_title = item.xpath("div[@class='views-field views-field-title']//span//text()").extract_first().strip()
             event_url = 'https://www.nasscom.in' + item.xpath("div[@class='views-field views-field-title']//span//a/@href").extract_first()
@@ -48,7 +52,7 @@ class NasscomSpider(scrapy.Spider):
                 event_city = re.findall(", (.*?),", event_venue)[-1]
             except IndexError:
                 event_city = None
-            event_data['Nasscom Events'].append(
+            event_data['Events'].append(
                         {
                             'event_title': event_title,
                             'event_venue': event_venue,
@@ -72,11 +76,13 @@ class NasscomSpider(scrapy.Spider):
                 'event_city': event_city,
                 'event_time': event_time,
             }
-            db.child("tech-conferences").child("nasscom").push(db_data)
+            db.child("tech-conferences").child("events").push(db_data)
+            count +=1
+        print('Total Items pushed: ',count)
 
     def spider_closed(self):
         if json_enabled:
-            with open('../tech events/NasscomEvents.json', 'w', encoding='utf-8') as file:
+            with open('NasscomEvents.json', 'a', encoding='utf-8') as file:
                 json.dump(event_data, file, ensure_ascii=False)
 
 

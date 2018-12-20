@@ -27,25 +27,31 @@ cookies = {"linkedin_oauth_ro57ogahnixy": "null", "linkedin_oauth_ro57ogahnixy_c
 headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.80 Safari/537.36',
            'x-requested-with': 'XMLHttpRequest',
            'referer': 'https://10times.com/technology'}
+
+
 class TentimesSpider(scrapy.Spider):
     name = "tentimes_spider"
     start_urls = ['https://10times.com/technology']
-    event_data['10times Events'] = []
+    event_data['Events'] = []
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
-        spider = super(TentimesSpider, cls).from_crawler(crawler, *args, **kwargs)
-        crawler.signals.connect(spider.spider_closed, signal=signals.spider_closed)
+        spider = super(TentimesSpider, cls).from_crawler(
+            crawler, *args, **kwargs)
+        crawler.signals.connect(spider.spider_closed,
+                                signal=signals.spider_closed)
         return spider
 
     def parse(self, response):
         page_num = 1
         while True:
-            r = requests.get(f'https://10times.com/ajax?for=scroll&path=/technology&ajax=1&page={page_num}&popular=1',
-                         headers=headers, params=cookies)
+            r = requests.get("https://10times.com/ajax?for=scroll&path=/technology&ajax=1&page=" + str(page_num) +"&popular=1",
+                             headers=headers, params=cookies)
             page_num += 1
             if r.status_code == 200:
-                res = scrapy.Selector(text=r.content.decode('utf-8'), type='html')
+                res = scrapy.Selector(
+                    text=r.content.decode('utf-8'), type='html')
+                count = 0
                 for j, row in enumerate(res.xpath("//tr[@class='box']")):
                     if not row.xpath("td[@colspan='6' and @class='tb-foot']"):
                         date_string = row.xpath("td[1]//text()").extract()
@@ -60,7 +66,7 @@ class TentimesSpider(scrapy.Spider):
                         event_venue = ", ".join(row.xpath("td[3]//a//text()").extract())
                         event_description = row.xpath("td[4]//text()").extract_first()
                         event_keywords = ", ".join([e.strip() for e in row.xpath("td[5]//text()").extract() if e.strip()])
-                        event_data['10times Events'].append(
+                        event_data['Events'].append(
                             {
                                 'event_title': event_title,
                                 'event_venue': event_venue,
@@ -83,12 +89,14 @@ class TentimesSpider(scrapy.Spider):
                             'event_city': event_venue,
                             'event_time': event_status,
                         }
-                        db.child("tech-conferences").child("10times").push(db_data)
+                        db.child("tech-conferences").child("events").push(db_data)
+                        count += 1
+                print('Total Items pushed: ',count)
             elif r.status_code == 403:
                 break
 
     def spider_closed(self):
         if json_enabled:
-            with open('../tech events/10timesEvents.json', 'w', encoding='utf-8') as file:
+            with open('10timesEvents.json', 'a', encoding='utf-8') as file:
                 json.dump(event_data, file, ensure_ascii=False)
 

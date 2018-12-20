@@ -26,7 +26,7 @@ db = firebase.database()
 class EventshighSpider(scrapy.Spider):
     name = "eventshigh_spider"
     start_urls = ['https://www.eventshigh.com/']
-    event_data['Eventshigh Events'] = []
+    event_data['Events'] = []
 
     @classmethod
     def from_crawler(cls, crawler, *args, **kwargs):
@@ -37,10 +37,11 @@ class EventshighSpider(scrapy.Spider):
     def parse(self, response):
         city_list = response.xpath("//div[@class='horizontal-container']//div[@class='f-s-16 p-t-16 cursor-pointer']//text()").extract()
         for city in city_list:
-            tech_event_url = f"https://www.eventshigh.com/{city}/technology?src=cat-pill"
+            tech_event_url = "https://www.eventshigh.com/" + str(city) + "/technology?src=cat-pill"
             yield scrapy.Request(tech_event_url, self.parse_event_data)
 
     def parse_event_data(self, response):
+        count = 0
         for item in response.xpath("//div[@class='m-sm-lr-16 browse-events-wrp']//div[@class='d-inline-block event-card-wrp valign-top ga-card-track browse-card']"):
             event_title = item.xpath("a//div[@class='truncate f-s-16 f-s-sm-12 l-h-1p5 color-dark-grey']//text()").extract_first()
             date_string = item.xpath("a//div[@class='truncate f-s-16 f-s-sm-12 f-w-500 l-h-1p5 color-dark-grey']//text()").extract_first().strip()
@@ -51,7 +52,7 @@ class EventshighSpider(scrapy.Spider):
             event_url = "https://www.eventshigh.com" + item.xpath("a/@href").extract_first()
             date_st = re.findall("[A-Z]{1}[a-z]{2}, ([0-9]{1,2} [A-Z]{1}[a-z]{2} [0-9]{0,4}) ?, ([0-9]{1,2}[:][0-9]{1,2}[A-Z]+)", date_string)
             try:
-                event_date = datetime.strptime(date_st[0][0], "%d %b ").strftime(f"{datetime.now().year}-%m-%d")
+                event_date = datetime.strptime(date_st[0][0], "%d %b ").strftime(datetime.now().year+ "-%m-%d")
             except ValueError:
                 event_date = datetime.strptime(date_st[0][0], "%d %b %Y").strftime("%Y-%m-%d")
             except:
@@ -84,11 +85,13 @@ class EventshighSpider(scrapy.Spider):
                     'event_city': event_city,
                     'event_time': event_time,
                 }
-            db.child("tech-conferences").child("eventshigh").push(db_data)
+            db.child("tech-conferences").child("events").push(db_data)
+            count +=1
+        print('Total Items pushed: ',count)
 
     def spider_closed(self):
         if json_enabled:
-            with open('../tech events/EventshighEvents.json', 'w', encoding='utf-8') as file:
+            with open('EventshighEvents.json', 'a', encoding='utf-8') as file:
                 json.dump(event_data, file, ensure_ascii=False)
 
 
